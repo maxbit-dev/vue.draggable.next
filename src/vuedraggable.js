@@ -1,4 +1,4 @@
-import { Sortable, MultiDrag } from "sortablejs";
+import Sortable, { MultiDrag } from "sortablejs";
 import { insertNodeAt, removeNode } from "./util/htmlHelper";
 import { console } from "./util/console";
 import {
@@ -137,7 +137,7 @@ const draggableComponent = defineComponent({
       return;
     }
 
-    const { $attrs, $el, componentStructure, multiDrag } = this;
+    const { $attrs, $el, componentStructure } = this;
     componentStructure.updated();
 
     const sortableOptions = createSortableOption({
@@ -149,9 +149,6 @@ const draggableComponent = defineComponent({
       }
     });
     const targetDomElement = $el.nodeType === 1 ? $el : $el.parentElement;
-    if (multiDrag) {
-      Sortable.mount(new MultiDrag())
-    }
     this._sortable = new Sortable(targetDomElement, sortableOptions);
     this.targetDomElement = targetDomElement;
     targetDomElement.__draggable_component__ = this;
