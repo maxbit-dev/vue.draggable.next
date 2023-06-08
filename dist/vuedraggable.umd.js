@@ -4252,6 +4252,7 @@ function _toConsumableArray(arr) {
 }
 // EXTERNAL MODULE: external {"commonjs":"sortablejs","commonjs2":"sortablejs","amd":"sortablejs","root":"Sortable"}
 var external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_ = __webpack_require__("a352");
+var external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_default = /*#__PURE__*/__webpack_require__.n(external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_);
 
 // CONCATENATED MODULE: ./src/util/htmlHelper.js
 function removeNode(node) {
@@ -4819,8 +4820,7 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
 
     var $attrs = this.$attrs,
         $el = this.$el,
-        componentStructure = this.componentStructure,
-        multiDrag = this.multiDrag;
+        componentStructure = this.componentStructure;
     componentStructure.updated();
     var sortableOptions = createSortableOption({
       $attrs: $attrs,
@@ -4837,12 +4837,7 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
       }
     });
     var targetDomElement = $el.nodeType === 1 ? $el : $el.parentElement;
-
-    if (multiDrag) {
-      external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_["Sortable"].mount(new external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_["MultiDrag"]());
-    }
-
-    this._sortable = new external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_["Sortable"](targetDomElement, sortableOptions);
+    this._sortable = new external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_default.a(targetDomElement, sortableOptions);
     this.targetDomElement = targetDomElement;
     targetDomElement.__draggable_component__ = this;
   },
