@@ -1,4 +1,4 @@
-import Sortable from "sortablejs";
+import { Sortable, MultiDrag } from "sortablejs";
 import { insertNodeAt, removeNode } from "./util/htmlHelper";
 import { console } from "./util/console";
 import {
@@ -65,6 +65,22 @@ const props = {
     type: Object,
     required: false,
     default: null
+  },
+  multiDrag: {
+    type: Boolean,
+    default: false
+  },
+	selectedClass: {
+    type: String,
+    default: "sortable-selected"
+  },
+	multiDragKey: {
+    type: String,
+    default: null
+  },
+	avoidImplicitDeselect: {
+    type: Boolean,
+    default: false
   }
 };
 
@@ -121,7 +137,7 @@ const draggableComponent = defineComponent({
       return;
     }
 
-    const { $attrs, $el, componentStructure } = this;
+    const { $attrs, $el, componentStructure, multiDrag } = this;
     componentStructure.updated();
 
     const sortableOptions = createSortableOption({
@@ -133,6 +149,9 @@ const draggableComponent = defineComponent({
       }
     });
     const targetDomElement = $el.nodeType === 1 ? $el : $el.parentElement;
+    if (multiDrag) {
+      Sortable.mount(new MultiDrag())
+    }
     this._sortable = new Sortable(targetDomElement, sortableOptions);
     this.targetDomElement = targetDomElement;
     targetDomElement.__draggable_component__ = this;
