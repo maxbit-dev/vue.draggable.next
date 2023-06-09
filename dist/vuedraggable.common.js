@@ -4030,6 +4030,9 @@ var es_array_index_of = __webpack_require__("c975");
 // EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.map.js
 var es_array_map = __webpack_require__("d81d");
 
+// EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.slice.js
+var es_array_slice = __webpack_require__("fb6a");
+
 // EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.splice.js
 var es_array_splice = __webpack_require__("a434");
 
@@ -4165,9 +4168,6 @@ function _iterableToArrayLimit(arr, i) {
 // EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.from.js
 var es_array_from = __webpack_require__("a630");
 
-// EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.slice.js
-var es_array_slice = __webpack_require__("fb6a");
-
 // EXTERNAL MODULE: ./node_modules/core-js/modules/es.function.name.js
 var es_function_name = __webpack_require__("b0c0");
 
@@ -4253,8 +4253,12 @@ function removeNode(node) {
 }
 
 function insertNodeAt(fatherNode, node, position) {
-  var refNode = position === 0 ? fatherNode.children[0] : fatherNode.children[position - 1].nextSibling;
-  fatherNode.insertBefore(node, refNode);
+  if (fatherNode.children.length && (position === 0 || fatherNode.children[position - 1])) {
+    var refNode = position === 0 ? fatherNode.children[0] : fatherNode.children[position - 1].nextSibling;
+    fatherNode.insertBefore(node, refNode);
+  } else {
+    fatherNode.append(node);
+  }
 }
 
 
@@ -4304,7 +4308,7 @@ var es_array_unscopables_flat_map = __webpack_require__("73d9");
 
 
 var manageAndEmit = ["Start", "Add", "Remove", "Update", "End"];
-var emit = ["Choose", "Unchoose", "Sort", "Filter", "Clone"];
+var emit = ["Choose", "Unchoose", "Sort", "Filter", "Clone", "Select", "Deselect"];
 var manage = ["Move"];
 var eventHandlerNames = [manage, manageAndEmit, emit].flatMap(function (events) {
   return events;
@@ -4672,6 +4676,13 @@ function computeComponentStructure(_ref2) {
 
 
 
+var MULTIDRAG;
+
+if (!MULTIDRAG) {
+  MULTIDRAG = new external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_["MultiDrag"]();
+  external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_default.a.mount(MULTIDRAG);
+}
+
 function _emit(evtName, evtData) {
   var _this = this;
 
@@ -4801,6 +4812,10 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
     if (this.list !== null && this.modelValue !== null) {
       console["a" /* console */].error("modelValue and list props are mutually exclusive! Please set one or another.");
     }
+
+    if (this.multiDrag && (this.selectedClass || "") === "") {
+      console["a" /* console */].warn("selected-class must be set when multi-drag mode. See https://github.com/SortableJS/Sortable/wiki/Dragging-Multiple-Items-in-Sortable#enable-multi-drag");
+    }
   },
   mounted: function mounted() {
     var _this4 = this;
@@ -4828,6 +4843,16 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
       }
     });
     var targetDomElement = $el.nodeType === 1 ? $el : $el.parentElement;
+
+    if (this.multiDrag) {
+      sortableOptions.multiDrag = true;
+      sortableOptions.selectedClass = this.selectedClass;
+
+      if (this.multiDragKey) {
+        sortableOptions.multiDragKey = this.multiDragKey;
+      }
+    }
+
     this._sortable = new external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_default.a(targetDomElement, sortableOptions);
     this.targetDomElement = targetDomElement;
     targetDomElement.__draggable_component__ = this;
@@ -4874,6 +4899,12 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
   methods: {
     getUnderlyingVm: function getUnderlyingVm(domElement) {
       return this.componentStructure.getUnderlyingVm(domElement) || null;
+    },
+    getUnderlyingVmList: function getUnderlyingVmList(htmlElts) {
+      var list = htmlElts.map(this.getUnderlyingVm);
+      return list.filter(function (e) {
+        return !!e;
+      });
     },
     getUnderlyingPotencialDraggableComponent: function getUnderlyingPotencialDraggableComponent(htmElement) {
       //TODO check case where you need to see component children
@@ -4942,8 +4973,22 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
       return this.componentStructure.getVmIndexFromDomIndex(domIndex, this.targetDomElement);
     },
     onDragStart: function onDragStart(evt) {
+      if (evt.items && evt.items.length) {
+        this.doDragStartList(evt);
+      } else {
+        this.doDragStart(evt);
+      }
+    },
+    doDragStart: function doDragStart(evt) {
       this.context = this.getUnderlyingVm(evt.item);
       evt.item._underlying_vm_ = this.clone(this.context.element);
+      draggingElement = evt.item;
+    },
+    doDragStartList: function doDragStartList(evt) {
+      this.context = this.getUnderlyingVmList(evt.items);
+      evt.item._underlying_vm_ = this.clone(this.context.map(function (e) {
+        return e.element;
+      }));
       draggingElement = evt.item;
     },
     onDragAdd: function onDragAdd(evt) {
@@ -4953,6 +4998,13 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
         return;
       }
 
+      if (Array.isArray(element)) {
+        this.doDragAddList(evt, element);
+      } else {
+        this.doDragAdd(evt, element);
+      }
+    },
+    doDragAdd: function doDragAdd(evt, element) {
       removeNode(evt.item);
       var newIndex = this.getVmIndexFromDomIndex(evt.newIndex); // @ts-ignore
 
@@ -4965,7 +5017,36 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
         added: added
       });
     },
+    doDragAddList: function doDragAddList(evt, elements) {
+      if (elements.length === 0) {
+        return;
+      }
+
+      evt.items.forEach(removeNode);
+      var newIndexFrom = this.getVmIndex(evt.newIndex);
+      this.alterList(function (list) {
+        return list.splice.apply(list, [newIndexFrom, 0].concat(_toConsumableArray(elements)));
+      });
+      var added = elements.map(function (element, index) {
+        var newIndex = newIndexFrom + index;
+        return {
+          element: element,
+          newIndex: newIndex
+        };
+      });
+      this.computeIndexes();
+      this.emitChanges({
+        added: added
+      });
+    },
     onDragRemove: function onDragRemove(evt) {
+      if (Array.isArray(this.context)) {
+        this.doDragRemoveList(evt);
+      } else {
+        this.doDragRemove(evt);
+      }
+    },
+    doDragRemove: function doDragRemove(evt) {
       insertNodeAt(this.$el, evt.item, evt.oldIndex);
 
       if (evt.pullMode === "clone") {
@@ -4986,7 +5067,54 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
         removed: removed
       });
     },
+    doDragRemoveList: function doDragRemoveList(evt) {
+      var _this6 = this;
+
+      evt.items.forEach(function (item, index) {
+        insertNodeAt(_this6.rootContainer, item, evt.oldIndicies[index].index);
+      });
+
+      if (evt.pullMode === "clone") {
+        if (evt.clones) {
+          evt.clones.forEach(removeNode);
+        } else {
+          removeNode(evt.clone);
+        }
+
+        return;
+      }
+
+      var reversed = this.context.sort(function (a, b) {
+        return b.index - a.index;
+      });
+      var removed = reversed.map(function (item) {
+        var oldIndex = item.index;
+
+        _this6.resetTransitionData(oldIndex);
+
+        return {
+          element: item.element,
+          oldIndex: oldIndex
+        };
+      });
+      this.alterList(function (list) {
+        removed.forEach(function (removedItem) {
+          list.splice(removedItem.oldIndex, 1);
+        });
+      });
+      this.computeIndexes();
+      this.emitChanges({
+        removed: removed
+      });
+    },
     onDragUpdate: function onDragUpdate(evt) {
+      if (Array.isArray(this.context)) {
+        this.doDragUpdateList(evt);
+      } else {
+        this.doDragUpdate(evt);
+      }
+    },
+    doDragUpdate: function doDragUpdate(evt) {
       removeNode(evt.item);
       insertNodeAt(evt.from, evt.item, evt.oldIndex);
       var oldIndex = this.context.index;
@@ -4997,6 +5125,46 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
         oldIndex: oldIndex,
         newIndex: newIndex
       };
+      this.emitChanges({
+        moved: moved
+      });
+    },
+    doDragUpdateList: function doDragUpdateList(evt) {
+      var _this7 = this;
+
+      evt.items.forEach(function (item, index) {
+        var c = _this7.context[index];
+        removeNode(item);
+        insertNodeAt(evt.from, item, c.index);
+      }); // eslint-disable-next-line prettier/prettier
+
+      var newIndexFrom = this.getVmIndex(evt.newIndex) - evt.items.indexOf(evt.item);
+      var moved = this.context.map(function (item, index) {
+        var oldIndex = item.index;
+        var newIndex = newIndexFrom + index;
+        return {
+          element: item.element,
+          oldIndex: oldIndex,
+          newIndex: newIndex
+        };
+      });
+      this.alterList(function (list) {
+        var target = moved.slice(); // remove moved elements from old index
+
+        target.sort(function (a, b) {
+          return b.oldIndex - a.oldIndex;
+        });
+        target.forEach(function (e) {
+          return list.splice(e.oldIndex, 1);
+        }); // add moved elements to new index
+
+        target.sort(function (a, b) {
+          return a.newIndex - b.newIndex;
+        });
+        target.forEach(function (e) {
+          return list.splice(e.newIndex, 0, e.element);
+        });
+      });
       this.emitChanges({
         moved: moved
       });
@@ -5037,7 +5205,8 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
 
       return move(sendEvent, originalEvent);
     },
-    onDragEnd: function onDragEnd() {
+    onDragEnd: function onDragEnd(evt) {
+      evt.items.forEach(external_commonjs_sortablejs_commonjs2_sortablejs_amd_sortablejs_root_Sortable_default.a.utils.deselect);
       draggingElement = null;
     }
   }
