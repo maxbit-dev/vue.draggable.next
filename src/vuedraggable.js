@@ -10,6 +10,13 @@ import { computeComponentStructure } from "./core/renderHelper";
 import { events } from "./core/sortableEvents";
 import { h, defineComponent, nextTick } from "vue";
 
+let MULTIDRAG;
+
+if (!MULTIDRAG) {
+  MULTIDRAG = new MultiDrag()
+  Sortable.mount(MULTIDRAG);
+}
+
 function emit(evtName, evtData) {
   nextTick(() => this.$emit(evtName.toLowerCase(), evtData));
 }
@@ -130,6 +137,12 @@ const draggableComponent = defineComponent({
         "modelValue and list props are mutually exclusive! Please set one or another."
       );
     }
+
+    if (this.multiDrag && (this.selectedClass || "") === "") {
+      console.warn(
+        "selected-class must be set when multi-drag mode. See https://github.com/SortableJS/Sortable/wiki/Dragging-Multiple-Items-in-Sortable#enable-multi-drag"
+      );
+    }
   },
 
   mounted() {
@@ -149,6 +162,13 @@ const draggableComponent = defineComponent({
       }
     });
     const targetDomElement = $el.nodeType === 1 ? $el : $el.parentElement;
+    if (this.multiDrag) {
+      sortableOptions.multiDrag = true;
+      sortableOptions.selectedClass = this.selectedClass;
+      if (this.multiDragKey) {
+        sortableOptions.multiDragKey = this.multiDragKey;
+      }
+    }
     this._sortable = new Sortable(targetDomElement, sortableOptions);
     this.targetDomElement = targetDomElement;
     targetDomElement.__draggable_component__ = this;
@@ -193,6 +213,11 @@ const draggableComponent = defineComponent({
   methods: {
     getUnderlyingVm(domElement) {
       return this.componentStructure.getUnderlyingVm(domElement) || null;
+    },
+
+    getUnderlyingVmList(htmlElts) {
+      const list = htmlElts.map(this.getUnderlyingVm);
+      return list.filter(e => !!e);
     },
 
     getUnderlyingPotencialDraggableComponent(htmElement) {
@@ -248,8 +273,22 @@ const draggableComponent = defineComponent({
     },
 
     onDragStart(evt) {
+      if (evt.items && evt.items.length) {
+        this.doDragStartList(evt);
+      } else {
+        this.doDragStart(evt);
+      }
+    },
+
+    doDragStart(evt) {
       this.context = this.getUnderlyingVm(evt.item);
       evt.item._underlying_vm_ = this.clone(this.context.element);
+      draggingElement = evt.item;
+    },
+
+    doDragStartList(evt) {
+      this.context = this.getUnderlyingVmList(evt.items);
+      evt.item._underlying_vm_ = this.clone(this.context.map(e => e.element));
       draggingElement = evt.item;
     },
 
@@ -258,6 +297,14 @@ const draggableComponent = defineComponent({
       if (element === undefined) {
         return;
       }
+      if (Array.isArray(element)) {
+        this.doDragAddList(evt, element);
+      } else {
+        this.doDragAdd(evt, element);
+      }
+    },
+
+    doDragAdd(evt, element) {
       removeNode(evt.item);
       const newIndex = this.getVmIndexFromDomIndex(evt.newIndex);
       // @ts-ignore
@@ -266,7 +313,30 @@ const draggableComponent = defineComponent({
       this.emitChanges({ added });
     },
 
+    doDragAddList(evt, elements) {
+      if (elements.length === 0) {
+        return;
+      }
+      evt.items.forEach(removeNode);
+      const newIndexFrom = this.getVmIndex(evt.newIndex);
+      this.alterList(list => list.splice(newIndexFrom, 0, ...elements));
+      const added = elements.map((element, index) => {
+        const newIndex = newIndexFrom + index;
+        return { element, newIndex };
+      });
+      this.computeIndexes();
+      this.emitChanges({ added });
+    },
+
     onDragRemove(evt) {
+      if (Array.isArray(this.context)) {
+        this.doDragRemoveList(evt);
+      } else {
+        this.doDragRemove(evt);
+      }
+    },
+
+    doDragRemove(evt) {
       insertNodeAt(this.$el, evt.item, evt.oldIndex);
       if (evt.pullMode === "clone") {
         removeNode(evt.clone);
@@ -279,13 +349,73 @@ const draggableComponent = defineComponent({
       this.emitChanges({ removed });
     },
 
+    doDragRemoveList(evt) {
+      evt.items.forEach((item, index) => {
+        insertNodeAt(this.rootContainer, item, evt.oldIndicies[index].index);
+      });
+      if (evt.pullMode === "clone") {
+        if (evt.clones) {
+          evt.clones.forEach(removeNode);
+        } else {
+          removeNode(evt.clone);
+        }
+        return;
+      }
+      const reversed = this.context.sort((a, b) => b.index - a.index);
+      const removed = reversed.map(item => {
+        const oldIndex = item.index;
+        this.resetTransitionData(oldIndex);
+        return { element: item.element, oldIndex };
+      });
+      this.alterList(list => {
+        removed.forEach(removedItem => {
+          list.splice(removedItem.oldIndex, 1);
+        });
+      });
+      this.computeIndexes();
+      this.emitChanges({ removed });
+    },
+
     onDragUpdate(evt) {
+      if (Array.isArray(this.context)) {
+        this.doDragUpdateList(evt);
+      } else {
+        this.doDragUpdate(evt);
+      }
+    },
+
+    doDragUpdate(evt) {
       removeNode(evt.item);
       insertNodeAt(evt.from, evt.item, evt.oldIndex);
       const oldIndex = this.context.index;
       const newIndex = this.getVmIndexFromDomIndex(evt.newIndex);
       this.updatePosition(oldIndex, newIndex);
       const moved = { element: this.context.element, oldIndex, newIndex };
+      this.emitChanges({ moved });
+    },
+
+    doDragUpdateList(evt) {
+      evt.items.forEach((item, index) => {
+        const c = this.context[index];
+        removeNode(item);
+        insertNodeAt(evt.from, item, c.index);
+      });
+      // eslint-disable-next-line prettier/prettier
+      const newIndexFrom = this.getVmIndex(evt.newIndex) - evt.items.indexOf(evt.item);
+      const moved = this.context.map((item, index) => {
+        const oldIndex = item.index;
+        const newIndex = newIndexFrom + index;
+        return { element: item.element, oldIndex, newIndex };
+      });
+      this.alterList(list => {
+        const target = moved.slice();
+        // remove moved elements from old index
+        target.sort((a, b) => b.oldIndex - a.oldIndex);
+        target.forEach(e => list.splice(e.oldIndex, 1));
+        // add moved elements to new index
+        target.sort((a, b) => a.newIndex - b.newIndex);
+        target.forEach(e => list.splice(e.newIndex, 0, e.element));
+      });
       this.emitChanges({ moved });
     },
 
@@ -326,7 +456,8 @@ const draggableComponent = defineComponent({
       return move(sendEvent, originalEvent);
     },
 
-    onDragEnd() {
+    onDragEnd(evt) {
+      evt.items.forEach(Sortable.utils.deselect);
       draggingElement = null;
     }
   }
