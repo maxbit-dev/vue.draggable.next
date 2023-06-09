@@ -5032,7 +5032,7 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
       }
 
       evt.items.forEach(removeNode);
-      var newIndexFrom = this.getVmIndex(evt.newIndex);
+      var newIndexFrom = this.getVmIndexFromDomIndex(evt.newIndex);
       this.alterList(function (list) {
         return list.splice.apply(list, [newIndexFrom, 0].concat(_toConsumableArray(elements)));
       });
@@ -5147,7 +5147,7 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
         insertNodeAt(evt.from, item, c.index);
       }); // eslint-disable-next-line prettier/prettier
 
-      var newIndexFrom = this.getVmIndex(evt.newIndex) - evt.items.indexOf(evt.item);
+      var newIndexFrom = this.getVmIndexFromDomIndex(evt.newIndex) - evt.items.indexOf(evt.item);
       var moved = this.context.map(function (item, index) {
         var oldIndex = item.index;
         var newIndex = newIndexFrom + index;

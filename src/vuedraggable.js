@@ -318,7 +318,7 @@ const draggableComponent = defineComponent({
         return;
       }
       evt.items.forEach(removeNode);
-      const newIndexFrom = this.getVmIndex(evt.newIndex);
+      const newIndexFrom = this.getVmIndexFromDomIndex(evt.newIndex);
       this.alterList(list => list.splice(newIndexFrom, 0, ...elements));
       const added = elements.map((element, index) => {
         const newIndex = newIndexFrom + index;
@@ -401,7 +401,7 @@ const draggableComponent = defineComponent({
         insertNodeAt(evt.from, item, c.index);
       });
       // eslint-disable-next-line prettier/prettier
-      const newIndexFrom = this.getVmIndex(evt.newIndex) - evt.items.indexOf(evt.item);
+      const newIndexFrom = this.getVmIndexFromDomIndex(evt.newIndex) - evt.items.indexOf(evt.item);
       const moved = this.context.map((item, index) => {
         const oldIndex = item.index;
         const newIndex = newIndexFrom + index;
