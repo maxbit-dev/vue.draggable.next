@@ -324,7 +324,6 @@ const draggableComponent = defineComponent({
         const newIndex = newIndexFrom + index;
         return { element, newIndex };
       });
-      this.computeIndexes();
       this.emitChanges({ added });
     },
 
@@ -351,7 +350,7 @@ const draggableComponent = defineComponent({
 
     doDragRemoveList(evt) {
       evt.items.forEach((item, index) => {
-        insertNodeAt(this.rootContainer, item, evt.oldIndicies[index].index);
+        insertNodeAt(this.targetDomElement, item, evt.oldIndicies[index].index);
       });
       if (evt.pullMode === "clone") {
         if (evt.clones) {
@@ -364,7 +363,6 @@ const draggableComponent = defineComponent({
       const reversed = this.context.sort((a, b) => b.index - a.index);
       const removed = reversed.map(item => {
         const oldIndex = item.index;
-        this.resetTransitionData(oldIndex);
         return { element: item.element, oldIndex };
       });
       this.alterList(list => {
@@ -372,7 +370,6 @@ const draggableComponent = defineComponent({
           list.splice(removedItem.oldIndex, 1);
         });
       });
-      this.computeIndexes();
       this.emitChanges({ removed });
     },
 

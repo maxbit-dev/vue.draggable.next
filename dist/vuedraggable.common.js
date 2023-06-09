@@ -5034,7 +5034,6 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
           newIndex: newIndex
         };
       });
-      this.computeIndexes();
       this.emitChanges({
         added: added
       });
@@ -5071,7 +5070,7 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
       var _this6 = this;
 
       evt.items.forEach(function (item, index) {
-        insertNodeAt(_this6.rootContainer, item, evt.oldIndicies[index].index);
+        insertNodeAt(_this6.targetDomElement, item, evt.oldIndicies[index].index);
       });
 
       if (evt.pullMode === "clone") {
@@ -5089,9 +5088,6 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
       });
       var removed = reversed.map(function (item) {
         var oldIndex = item.index;
-
-        _this6.resetTransitionData(oldIndex);
-
         return {
           element: item.element,
           oldIndex: oldIndex
@@ -5102,7 +5098,6 @@ var draggableComponent = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["d
           list.splice(removedItem.oldIndex, 1);
         });
       });
-      this.computeIndexes();
       this.emitChanges({
         removed: removed
       });
